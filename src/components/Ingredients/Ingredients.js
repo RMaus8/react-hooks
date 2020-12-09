@@ -1,58 +1,98 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useReducer, useEffect, useCallback, useMemo } from 'react';
 
 import IngredientForm from './IngredientForm';
 import IngredientList from './IngredientList';
+import ErrorModal from '../UI/ErrorModal';
 import Search from './Search';
+import useHttp from '../../hooks/http';
 
-function Ingredients() {
-	const [ ingredients, setIngredients ] = useState([]);
+const ingredientReducer = (currentIngredients, action) => {
+  switch (action.type) {
+    case 'SET':
+      return action.ingredients;
+    case 'ADD':
+      return [...currentIngredients, action.ingredient];
+    case 'DELETE':
+      return currentIngredients.filter(ing => ing.id !== action.id);
+    default:
+      throw new Error('Should not get there!');
+  }
+};
 
-	useEffect(() => {
-		fetch('https://react-hooks-e54e1.firebaseio.com/ingredients.json')
-			.then(res => res.json())
-			.then(resData => {
-				const loadedIngredients = [];
-				for (const key in resData) {
-					loadedIngredients.push({
-						id: key,
-						title: resData[key].title,
-						amount: resData[key].amount
-					});
-				}
-				setIngredients(loadedIngredients);
-			});
-	}, []);
+const Ingredients = () => {
+  const [userIngredients, dispatch] = useReducer(ingredientReducer, []);
+  const {
+    isLoading,
+    error,
+    data,
+    sendRequest,
+    reqExtra,
+    reqIdentifer,
+    clear
+  } = useHttp();
 
-	const filteredIngredients = useCallback(filteredIngs => {
-		setIngredients(filteredIngs);
-	}, []);
+  useEffect(() => {
+    if (!isLoading && !error && reqIdentifer === 'REMOVE_INGREDIENT') {
+      dispatch({ type: 'DELETE', id: reqExtra });
+    } else if (!isLoading && !error && reqIdentifer === 'ADD_INGREDIENT') {
+      dispatch({
+        type: 'ADD',
+        ingredient: { id: data.name, ...reqExtra }
+      });
+    }
+  }, [data, reqExtra, reqIdentifer, isLoading, error]);
 
-	const addIngredientHandler = ingredient => {
-		fetch('https://react-hooks-e54e1.firebaseio.com/ingredients.json', {
-			method: 'POST',
-			body: JSON.stringify(ingredient),
-			headers: { 'Content-Type': 'application/json' }
-		}).then( response => {
-			return response.json();
-		}).then( resData => {
-			setIngredients(prevIngredients => [...prevIngredients, {id: resData.name, ...ingredient}]);
-		});
-	}
+  const filteredIngredientsHandler = useCallback(filteredIngredients => {
+    dispatch({ type: 'SET', ingredients: filteredIngredients });
+  }, []);
 
-	const removeIngredientHandler = ingId => {
-		setIngredients(prevIngredients => prevIngredients.filter(ing => ing.id !== ingId));
-	}
+  const addIngredientHandler = useCallback(ingredient => {
+    sendRequest(
+      'https://react-hooks-update.firebaseio.com/ingredients.json',
+      'POST',
+      JSON.stringify(ingredient),
+      ingredient,
+      'ADD_INGREDIENT'
+    );
+  }, [sendRequest]);
 
-	return (
-		<div className="App">
-			<IngredientForm addIngredient={addIngredientHandler}/>
+  const removeIngredientHandler = useCallback(
+    ingredientId => {
+      sendRequest(
+        `https://react-hooks-update.firebaseio.com/ingredients/${ingredientId}.json`,
+        'DELETE',
+        null,
+        ingredientId,
+        'REMOVE_INGREDIENT'
+      );
+    },
+    [sendRequest]
+  );
 
-			<section>
-				<Search onLoadIngredients={filteredIngredients}/>
-				<IngredientList ingredients={ingredients} onRemoveItem={removeIngredientHandler}/>
-			</section>
-		</div>
-	);
-}
+  const ingredientList = useMemo(() => {
+    return (
+      <IngredientList
+        ingredients={userIngredients}
+        onRemoveItem={removeIngredientHandler}
+      />
+    );
+  }, [userIngredients, removeIngredientHandler]);
+
+  return (
+    <div className="App">
+      {error && <ErrorModal onClose={clear}>{error}</ErrorModal>}
+
+      <IngredientForm
+        onAddIngredient={addIngredientHandler}
+        loading={isLoading}
+      />
+
+      <section>
+        <Search onLoadIngredients={filteredIngredientsHandler} />
+        {ingredientList}
+      </section>
+    </div>
+  );
+};
 
 export default Ingredients;
