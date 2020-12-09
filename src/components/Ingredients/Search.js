@@ -19,7 +19,7 @@ const Search = React.memo(props => {
             ? ''
             : `?orderBy="title"&equalTo="${enteredFilter}"`;
         sendRequest(
-          'https://react-hooks-update.firebaseio.com/ingredients.json' + query,
+          'https://react-hooks-e54e1.firebaseio.com/ingredients.json' + query,
           'GET'
         );
       }

@@ -48,7 +48,7 @@ const Ingredients = () => {
 
   const addIngredientHandler = useCallback(ingredient => {
     sendRequest(
-      'https://react-hooks-update.firebaseio.com/ingredients.json',
+      'https://react-hooks-e54e1.firebaseio.com/ingredients.json',
       'POST',
       JSON.stringify(ingredient),
       ingredient,
@@ -59,7 +59,7 @@ const Ingredients = () => {
   const removeIngredientHandler = useCallback(
     ingredientId => {
       sendRequest(
-        `https://react-hooks-update.firebaseio.com/ingredients/${ingredientId}.json`,
+        `https://react-hooks-e54e1.firebaseio.com/ingredients/${ingredientId}.json`,
         'DELETE',
         null,
         ingredientId,
